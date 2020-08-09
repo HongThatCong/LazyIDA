@@ -1,7 +1,7 @@
 # https://github.com/L4ys/LazyIDA
 # https://github.com/HongThatCong/LazyIDA
 
-#pylint: disable=C0301,C0103,C0111
+# pylint: disable=C0301,C0103,C0111
 
 # 09/08/2020 - HTC (VinCSS)
 #   - fix bug read_selection
