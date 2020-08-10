@@ -177,7 +177,7 @@ def paste_highlight_name():
                 name = ida_name.validate_name(name, ida_name.VNT_IDENT)
                 if not ida_name.set_name(ea, name, ida_name.SN_AUTO | ida_name.SN_NOWARN | ida_name.SN_FORCE):
                     print("[LazyIDA] FAILED to set name '%s' to 0x%X" % (name, ea))
-                    return False;
+                    return False
 
             print("[LazyIDA] set name '%s' to 0x%X" % (name, ea))
             return True
