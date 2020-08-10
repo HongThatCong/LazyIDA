@@ -175,11 +175,12 @@ def paste_highlight_name():
         if name:
             if not ida_name.set_name(ea, name, ida_name.SN_AUTO | ida_name.SN_NOWARN | ida_name.SN_FORCE):
                 name = ida_name.validate_name(name, ida_name.VNT_IDENT)
-                if ida_name.set_name(ea, name, ida_name.SN_AUTO | ida_name.SN_NOWARN | ida_name.SN_FORCE):
-                    print("[LazyIDA] set name '%s' to 0x%X" % (name, ea))
-                    return True
+                if not ida_name.set_name(ea, name, ida_name.SN_AUTO | ida_name.SN_NOWARN | ida_name.SN_FORCE):
+                    print("[LazyIDA] FAILED to set name '%s' to 0x%X" % (name, ea))
+                    return False;
 
-            print("[LazyIDA] FAILED to set name '%s' to 0x%X" % (name, ea))
+            print("[LazyIDA] set name '%s' to 0x%X" % (name, ea))
+            return True
         else:
             print("[LazyIDA] clipboard empty")
     else:
