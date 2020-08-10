@@ -9,6 +9,8 @@
 #   - change "C" hotkey to Shift-C, because C is duplicate function with IDA Ctrl-C hotkey
 #     Shift-C will copy full name of a current highlight name
 #   - add "Shfit-V" hotkey, paste name from clipboard to current highlight name or current addr (fullname)
+# 10/08/2020
+#   - Fix bug sanitize name from clipboard text - Ngon Nguyen
 
 from __future__ import division
 from __future__ import print_function
@@ -21,6 +23,7 @@ import idautils
 import idc
 import ida_kernwin
 import ida_xref
+import ida_name
 
 from PyQt5.Qt import QApplication
 
@@ -88,6 +91,13 @@ def parse_location(text):
     if is_valid_addr(ea):
         return ea
 
+    # Try to sanitize the name
+    san = ida_name.validate_name(text, ida_name.VNT_IDENT)
+    if san:
+        ea = idc.get_name_ea_simple(san)
+        if is_valid_addr(ea):
+            return ea
+
     # Parse text into words, find every word is a valid name
     strs = re.findall(r"\w+", text)
     if strs:
@@ -153,20 +163,29 @@ def copy_highlight_name():
             name = "0x%X" % ea  # copy ea
         copy_to_clip(name)
         print("[LazyIDA] '%s' copied to clipboard" % name)
+        return True
     else:
         print("[LazyIDA] invalid ea to copy")
+        return False
 
 def paste_highlight_name():
     ea = get_ea_from_highlight()
     if ea != idaapi.BADADDR:
         name = clip_text()
         if name:
-            idc.set_name(ea, name, idc.SN_AUTO | idc.SN_NOWARN)
-            print("[LazyIDA] set name '%s' to 0x%X" % (name, ea))
+            if not ida_name.set_name(ea, name, ida_name.SN_AUTO | ida_name.SN_NOWARN | ida_name.SN_FORCE):
+                name = ida_name.validate_name(name, ida_name.VNT_IDENT)
+                if ida_name.set_name(ea, name, ida_name.SN_AUTO | ida_name.SN_NOWARN | ida_name.SN_FORCE):
+                    print("[LazyIDA] set name '%s' to 0x%X" % (name, ea))
+                    return True
+
+            print("[LazyIDA] FAILED to set name '%s' to 0x%X" % (name, ea))
         else:
             print("[LazyIDA] clipboard empty")
     else:
         print("[LazyIDA] invalid ea to paste")
+
+    return False
 
 # HTC -> end
 # -----------------------------------------------------------------------------
@@ -600,7 +619,7 @@ class LazyIDA_t(idaapi.plugin_t):
         else:
             LAZY_BITS = 16
 
-        print("LazyIDA (v1.0.0.3) plugin has been loaded.")
+        print("[LazyIDA] v1.0.0.4 - plugin has been loaded.")
 
         # Register menu actions
         menu_actions = (
@@ -687,6 +706,8 @@ class LazyIDA_t(idaapi.plugin_t):
             if self.hx_hook:
                 idaapi.remove_hexrays_callback(self.hx_hook.callback)
             idaapi.term_hexrays_plugin()
+
+        print("[LazyIDA] plugin terminated.")
 
 
 def PLUGIN_ENTRY():
