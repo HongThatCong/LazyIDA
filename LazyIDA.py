@@ -37,7 +37,7 @@ ACTION_FILLNOP = "lazyida:fillnop"
 # ASM view hotkeys
 ACTION_COPYEA = "lazyida:copyea"        # W hotkey
 ACTION_COPYNAME = "lazyida:copyname"    # add by HTC, Shift-C hotkey
-ACTION_PASTENAME = "lazyida:pastedata"  # add by HTC, Shift-V hotkey
+ACTION_PASTENAME = "lazyida:pastename"  # add by HTC, Shift-V hotkey
 ACTION_GOTOCLIP = "lazyida:gotoclip"    # Shift-G hotkey
 
 # Decompiler view hotkeys
@@ -235,11 +235,7 @@ class hotkey_action_handler_t(idaapi.action_handler_t):
                 print("[LazyIDA] address '0x%X' copied to clipboard" % ea)
         elif self.action == ACTION_GOTOCLIP:
             goto_clip_text()
-        elif self.action == ACTION_COPYNAME:
-            copy_highlight_name()
-        elif self.action == ACTION_PASTENAME:
-            paste_highlight_name()
-
+        # remove copyname & pastname action
         return 1
 
     def update(self, ctx):
@@ -381,6 +377,10 @@ class menu_action_handler_t(idaapi.action_handler_t):
                 ch.Show()
             else:
                 print("[-] No format string vulnerabilities found.")
+        elif self.action == ACTION_COPYNAME:
+            copy_highlight_name()
+        elif self.action == ACTION_PASTENAME:
+            paste_highlight_name()
         else:
             return 0
 
@@ -562,6 +562,8 @@ class UI_Hook(idaapi.UI_Hooks):
                 idaapi.attach_action_to_popup(widget, popup, ACTION_COPYDATA, "LazyIDA/")
                 idaapi.attach_action_to_popup(widget, popup, ACTION_XORDATA, "LazyIDA/")
                 idaapi.attach_action_to_popup(widget, popup, ACTION_FILLNOP, "LazyIDA/")
+                idaapi.attach_action_to_popup(widget, popup, ACTION_COPYNAME, "LazyIDA/")
+                idaapi.attach_action_to_popup(widget, popup, ACTION_PASTENAME, "LazyIDA/")
 
         if widget_type == idaapi.BWN_DISASM and (LAZY_ARCH, LAZY_BITS) in [(idaapi.PLFM_386, 32),
                                                                            (idaapi.PLFM_386, 64),
@@ -638,6 +640,8 @@ class LazyIDA_t(idaapi.plugin_t):
             idaapi.action_desc_t(ACTION_XORDATA, "Get xored data", menu_action_handler_t(ACTION_XORDATA), None, None, 9),
             idaapi.action_desc_t(ACTION_FILLNOP, "Fill with NOPs", menu_action_handler_t(ACTION_FILLNOP), None, None, 9),
             idaapi.action_desc_t(ACTION_SCANVUL, "Scan format string vulnerabilities", menu_action_handler_t(ACTION_SCANVUL), None, None, 160),
+            idaapi.action_desc_t(ACTION_COPYNAME, "Copy highligh name", menu_action_handler_t(ACTION_COPYNAME), "Shift-C", "Copy current highlight full name to clipboard", 9),
+            idaapi.action_desc_t(ACTION_PASTENAME, "Paste to highligh name", menu_action_handler_t(ACTION_PASTENAME), "Shift-V", "Paste clipboard text to current highlight name", 9),
         )
         for action in menu_actions:
             idaapi.register_action(action)
@@ -649,10 +653,10 @@ class LazyIDA_t(idaapi.plugin_t):
                                  "w", "Copy current EA to clipboard", 0),
             idaapi.action_desc_t(ACTION_GOTOCLIP, "Goto clip EA/name", hotkey_action_handler_t(ACTION_GOTOCLIP),
                                  "Shift-G", "Goto clipboard EA/name", 0),
-            idaapi.action_desc_t(ACTION_COPYNAME, "Copy highligh name", hotkey_action_handler_t(ACTION_COPYNAME),
-                                 "Shift-C", "Copy current highlight full name to clipboard", 0),
-            idaapi.action_desc_t(ACTION_PASTENAME, "Paste to highligh name", hotkey_action_handler_t(ACTION_PASTENAME),
-                                 "Shift-V", "Paste clipboard text to current highlight name", 0),
+            #idaapi.action_desc_t(ACTION_COPYNAME, "Copy highligh name", hotkey_action_handler_t(ACTION_COPYNAME),
+            #                     "Shift-C", "Copy current highlight full name to clipboard", 0),
+            #idaapi.action_desc_t(ACTION_PASTENAME, "Paste to highligh name", hotkey_action_handler_t(ACTION_PASTENAME),
+            #                     "Shift-V", "Paste clipboard text to current highlight name", 0),
         )
         for action in hotkey_actions:
             idaapi.register_action(action)
