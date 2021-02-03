@@ -1,8 +1,9 @@
 # LazyIDA
 Xem hướng dẫn, hình ảnh ở: https://github.com/L4ys/LazyIDA
 
-VÀ read code này.
+# Hướng dẫn sử dụng viết sau
 
-Giờ mệt, chán, lười, làm biếng viết rít mi rồi. 
+Cảm ơn dùng thử, vui lòng report bugs nếu có.
 
-Bịnh rầu, chắc dính em Vy.
+Chân chọng
+HTC
