@@ -318,6 +318,14 @@ def get_ea_from_highlight():
         if name and thing[0] in name:
             return ea
 
+        # are we at end of function ?
+        fn = idaapi.get_func(ea)
+        if fn:
+            if ea == fn.end_ea or idc.next_head(ea) == fn.end_ea:
+                name = idc.get_name(fn.start_ea, idaapi.GN_DEMANGLED)
+                if name and thing[0] in name:
+                    return fn.start_ea
+
         # Try to get full highlight name
         place = idaapi.get_custom_viewer_place(view, False)
         if place and len(place) == 3:   # (plate_t, x, y)
