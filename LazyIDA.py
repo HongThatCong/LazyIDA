@@ -234,19 +234,32 @@ def goto_clip_text():
     plg_print("Failed to get a valid ea")
     return 0
 
+def get_number_from_highlight():
+    txt = ""
+    view = idaapi.get_current_viewer()
+    thing = ida_kernwin.get_highlight(view)
+    if thing and thing[1]:
+        # we have a highligh
+        txt = thing[0]
+    else:
+        txt = clip_text()
+
+    if not txt:
+        return 0
+
+    # is it a valid number ?
+    val = 0
+    if txt.endswith("h"):
+        txt = txt[:-1]
+    try:
+        val = int(txt, 16)
+    except:
+        pass
+
+    return val
+
 def goto_rva():
-    rva = 0
-    txt = clip_text()
-    if txt.isdigit():
-        try:
-            rva = int(txt, 10)
-        except:
-            pass
-    elif txt.isalnum():
-        try:
-            rva = int(txt, 16)
-        except:
-            pass
+    rva = get_number_from_highlight()
     rva = ida_kernwin.ask_addr(rva, "Enter the RVA to jump to")
     if rva is None:
         return 0
@@ -258,18 +271,7 @@ def goto_rva():
     return 1
 
 def goto_file_ofs():
-    fofs = 0
-    txt = clip_text()
-    if txt.isdigit():
-        try:
-            fofs = int(txt, 10)
-        except:
-            pass
-    elif txt.isalnum():
-        try:
-            fofs = int(txt, 16)
-        except:
-            pass
+    fofs = get_number_from_highlight()
     fofs = ida_kernwin.ask_addr(fofs, "Enter the file offset to jump to")
     if fofs is None:
         return 0
@@ -287,7 +289,7 @@ def copy_rva():
     ea = idc.get_screen_ea()
     base = ida_nalt.get_imagebase()
     rva = ea - base
-    plg_print("EA = %X - RVA = %X copied to clipboard" % (ea, rva))
+    plg_print("EA = 0x%X - RVA = 0x%X copied to clipboard" % (ea, rva))
     copy_to_clip("0x%X" % rva)
 
 def copy_file_offset():
