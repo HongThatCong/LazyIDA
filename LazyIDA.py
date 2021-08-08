@@ -56,7 +56,8 @@ ACTION_MENU_COPY_DATA = "lazyida::copy_data"        # added by merc
 ACTION_MENU_DUMP_DATA = "lazyida::dump_data"        # HTC
 ACTION_MENU_XOR_DATA = "lazyida::xor_data"          # HTC & CatBui mod
 ACTION_MENU_FILL_NOP = "lazyida::fill_nop"
-ACTION_MENU_B64STD = "lazyida::base64std_decode"    # added by HTC
+ACTION_MENU_NOP_HIDER = "lazyida::nop_hider"        # added by HTC
+ACTION_MENU_B64STD = "lazyida::base64std_decode"
 ACTION_MENU_B64URL = "lazyida::base64url_decode"
 
 #
@@ -74,9 +75,10 @@ ACTION_HOTKEY_GOTO_CLIP = ("lazyida::goto_clip", "Goto text in clipboard", "Shif
 ACTION_HOTKEY_GOTO_FOFS = ("lazyida::goto_fofs", "Goto file offset", "Shift-J", "Goto file offset", 0x7D)  # IDA already had this action "JumpFileOffset"
 ACTION_HOTKEY_GOTO_RVA = ("lazyida::goto_rva", "Goto RVA", "Alt-G", "Goto RVA", 0x7D)
 ACTION_HOTKEY_SEARCH_GOOGLE = ("lazyida::search_google", "Search Google", "Ctrl-Shift-G", "Search Google", 0x21)
-ACTION_HOTKEY_SEARCH_MSDOC = ("lazyida::search_msdoc", "Search MS Docs", "Ctrl-Shift-M", "Search MS Docs", 0x21)
-ACTION_HOTKEY_SEARCH_BING = ("lazyida::search_bing", "Search Bing", "Ctrl-Shift-B", "Search Bing", 0x21)
+ACTION_HOTKEY_SEARCH_MSDOC = ("lazyida::search_msdoc", "Search MS Docs", "Ctrl-Shift-R", "Search MS Docs", 0x21)
+ACTION_HOTKEY_SEARCH_BING = ("lazyida::search_bing", "Search Bing", "Ctrl-Shift-J", "Search Bing", 0x21)
 ACTION_HOTKEY_SEARCH_GITHUB = ("lazyida::search_github", "Search Github", "Ctrl-Shift-H", "Search Github", 0x21)
+ACTION_HOTKEY_OPEN_URL = ("lazyida::open_url", "Open URL", "",  "Open URL", 0)
 
 ALL_HOTKEY_ACTIONS = (
     ACTION_HOTKEY_COPY_EA,
@@ -91,6 +93,7 @@ ALL_HOTKEY_ACTIONS = (
     ACTION_HOTKEY_SEARCH_MSDOC,
     ACTION_HOTKEY_SEARCH_BING,
     ACTION_HOTKEY_SEARCH_GITHUB,
+    ACTION_HOTKEY_OPEN_URL,
 )
 
 # Decompiler view hotkeys
@@ -234,16 +237,7 @@ def goto_clip_text():
     plg_print("Failed to get a valid ea")
     return 0
 
-def get_number_from_highlight():
-    txt = ""
-    view = idaapi.get_current_viewer()
-    thing = ida_kernwin.get_highlight(view)
-    if thing and thing[1]:
-        # we have a highligh
-        txt = thing[0]
-    else:
-        txt = clip_text()
-
+def str2hex(txt):
     if not txt:
         return 0
 
@@ -257,6 +251,18 @@ def get_number_from_highlight():
         pass
 
     return val
+
+def get_number_from_highlight():
+    view = idaapi.get_current_viewer()
+    thing = ida_kernwin.get_highlight(view)
+    if thing and thing[1]:
+        # we have a highlight
+        val = str2hex(thing[0])
+        if val != 0:
+            # have a valid hex number
+            return val
+
+    return str2hex(clip_text())
 
 def goto_rva():
     rva = get_number_from_highlight()
@@ -574,6 +580,39 @@ def xor_data(data, key):
         output[i] = data[i] ^ key[i % len(key)]
     return output
 
+def nop_hider():
+    hides = []
+    in_nop_sled = 0
+    curr_pos = 0
+    sled_len = 0
+
+    for seg_ea in idautils.Segments():
+        for head in idautils.Heads(seg_ea, idc.get_segm_end(seg_ea)):
+            if idc.is_code(idc.get_full_flags(head)):
+                mnem = idc.print_insn_mnem(head)
+                if mnem == 'nop':
+                    sled_len += 1
+                    if in_nop_sled == 0:
+                        curr_pos = head
+                        in_nop_sled = 1
+                else :
+                    if in_nop_sled == 1 :
+                        in_nop_sled = 0
+                        hides.append([curr_pos, sled_len])
+                        curr_pos = 0
+                        sled_len = 0
+
+    if len(hides) == 0:
+        plg_print("Found nothing NOPs block")
+
+    for h in hides:
+        if h[1] > 1:
+            plg_print("Hide range: 0x%X - 0x%X" % (h[0], h[0] + h[1]))
+            idc.add_hidden_range(h[0], h[0] + h[1], '[NOPs]', '', '', 0xFFFFFF)
+            idc.update_hidden_range(h[0], False)
+
+    plg_print("Hidding %d NOPs block" % len(hides))
+
 # NgonNguyen & HTC -> end
 # -----------------------------------------------------------------------------
 
@@ -640,6 +679,10 @@ class hotkey_action_handler_t(idaapi.action_handler_t):
             search_bing()
         elif self.action == ACTION_HOTKEY_SEARCH_GITHUB[0]:
             search_github()
+        elif self.action == ACTION_HOTKEY_OPEN_URL[0]:
+            text = get_selected_text()
+            if text:
+                idaapi.open_url(text)
         else:
             return 0
 
@@ -719,7 +762,7 @@ class menu_action_handler_t(idaapi.action_handler_t):
                     # C array qword
                     data += b"\x00" * 7
                     array_size = (size + 7) // 8
-                    output = "unsigned long %s[%d] = {" % (name, array_size)
+                    output = "unsigned __int64 %s[%d] = {" % (name, array_size)
                     for i in range(0, size, 8):
                         if i % 32 == 0:
                             output += "\n    "
@@ -842,6 +885,9 @@ class menu_action_handler_t(idaapi.action_handler_t):
             idaapi.patch_bytes(start, b"\x90" * (end - start))
             idc.create_insn(start)
             plg_print("Fill 0x%X to 0x%X (%u bytes) with NOPs" % (start, end, end - start))
+
+        elif self.action == ACTION_MENU_NOP_HIDER:
+            nop_hider()
 
         elif self.action == ACTION_MENU_B64STD:
             base64_decode(True)
@@ -1033,6 +1079,7 @@ class UI_Hook(idaapi.UI_Hooks):
         idaapi.attach_action_to_popup(widget, popup, ACTION_HOTKEY_SEARCH_MSDOC[0], "LazyIDA/")
         idaapi.attach_action_to_popup(widget, popup, ACTION_HOTKEY_SEARCH_BING[0], "LazyIDA/")
         idaapi.attach_action_to_popup(widget, popup, ACTION_HOTKEY_SEARCH_GITHUB[0], "LazyIDA/")
+        idaapi.attach_action_to_popup(widget, popup, ACTION_HOTKEY_OPEN_URL[0], "LazyIDA/")
         idaapi.attach_action_to_popup(widget, popup, None, "LazyIDA/")
 
         widget_type = idaapi.get_widget_type(widget)
@@ -1045,6 +1092,7 @@ class UI_Hook(idaapi.UI_Hooks):
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_DUMP_DATA, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_XOR_DATA, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_FILL_NOP, "LazyIDA/")
+            idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_NOP_HIDER, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, None, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_B64STD, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_B64URL, "LazyIDA/")
@@ -1153,6 +1201,7 @@ class LazyIDA_t(idaapi.plugin_t):
             idaapi.action_desc_t(ACTION_MENU_DUMP_DATA, "Dump data to file", menu_action_handler_t(ACTION_MENU_DUMP_DATA), None, None, 0x1B),
             idaapi.action_desc_t(ACTION_MENU_XOR_DATA, "Get xored data", menu_action_handler_t(ACTION_MENU_XOR_DATA), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_FILL_NOP, "Fill with NOPs", menu_action_handler_t(ACTION_MENU_FILL_NOP), None, None, 9),
+            idaapi.action_desc_t(ACTION_MENU_NOP_HIDER, "NOPs Hider", menu_action_handler_t(ACTION_MENU_NOP_HIDER), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_B64STD, "Base64Std decode", menu_action_handler_t(ACTION_MENU_B64STD), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_B64URL, "Base64Url decode", menu_action_handler_t(ACTION_MENU_B64URL), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_SCAN_VUL, "Scan format string vulnerabilities", menu_action_handler_t(ACTION_MENU_SCAN_VUL), None, None, 160),
