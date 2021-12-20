@@ -21,7 +21,9 @@
 #   - Refactor, clean code, add nhieu tinh nang. Nhieu qua, lam bieng liet ke, chiu kho xem code hay diff :D
 # 31/01/2021
 #   - Release ver 1.0.5
-
+# 20/12/2021:
+#   - Add Revert IDA Decision
+#
 from __future__ import division
 from __future__ import print_function
 
@@ -57,6 +59,7 @@ ACTION_MENU_DUMP_DATA = "lazyida::dump_data"        # HTC
 ACTION_MENU_XOR_DATA = "lazyida::xor_data"          # HTC & CatBui mod
 ACTION_MENU_FILL_NOP = "lazyida::fill_nop"
 ACTION_MENU_NOP_HIDER = "lazyida::nop_hider"        # added by HTC
+ACTION_MENU_AUTO_OFF = "lazyida::turn_off_ida_decision"
 ACTION_MENU_B64STD = "lazyida::base64std_decode"
 ACTION_MENU_B64URL = "lazyida::base64url_decode"
 
@@ -613,6 +616,14 @@ def nop_hider():
 
     plg_print("Hidding %d NOPs block" % len(hides))
 
+def turn_off_ida_decision():
+    sel, start, end = lazy_read_selection()
+    if not sel:
+        return 0
+
+    plg_print("Turn off IDA auto analysis for range 0x%X - 0x%X" % (start, end))
+    idaapi.revert_ida_decisions(start, end)
+
 # NgonNguyen & HTC -> end
 # -----------------------------------------------------------------------------
 
@@ -889,6 +900,9 @@ class menu_action_handler_t(idaapi.action_handler_t):
         elif self.action == ACTION_MENU_NOP_HIDER:
             nop_hider()
 
+        elif self.action == ACTION_MENU_AUTO_OFF:
+            turn_off_ida_decision()
+
         elif self.action == ACTION_MENU_B64STD:
             base64_decode(True)
 
@@ -1093,6 +1107,7 @@ class UI_Hook(idaapi.UI_Hooks):
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_XOR_DATA, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_FILL_NOP, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_NOP_HIDER, "LazyIDA/")
+            idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_AUTO_OFF, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, None, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_B64STD, "LazyIDA/")
             idaapi.attach_action_to_popup(widget, popup, ACTION_MENU_B64URL, "LazyIDA/")
@@ -1202,6 +1217,7 @@ class LazyIDA_t(idaapi.plugin_t):
             idaapi.action_desc_t(ACTION_MENU_XOR_DATA, "Get xored data", menu_action_handler_t(ACTION_MENU_XOR_DATA), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_FILL_NOP, "Fill with NOPs", menu_action_handler_t(ACTION_MENU_FILL_NOP), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_NOP_HIDER, "NOPs Hider", menu_action_handler_t(ACTION_MENU_NOP_HIDER), None, None, 9),
+            idaapi.action_desc_t(ACTION_MENU_AUTO_OFF, "Revert IDA Decision", menu_action_handler_t(ACTION_MENU_AUTO_OFF), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_B64STD, "Base64Std decode", menu_action_handler_t(ACTION_MENU_B64STD), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_B64URL, "Base64Url decode", menu_action_handler_t(ACTION_MENU_B64URL), None, None, 9),
             idaapi.action_desc_t(ACTION_MENU_SCAN_VUL, "Scan format string vulnerabilities", menu_action_handler_t(ACTION_MENU_SCAN_VUL), None, None, 160),
@@ -1237,7 +1253,7 @@ class LazyIDA_t(idaapi.plugin_t):
         addon.name = "LazyIDA"
         addon.producer = "HTC (Original: Lays - tw.l4ys.lazyida)"
         addon.url = "https://github.com/HongThatCong/LazyIDA"
-        addon.version = "1.0.0.5"
+        addon.version = "1.0.6"
         idaapi.register_addon(addon)
 
         return idaapi.PLUGIN_KEEP
