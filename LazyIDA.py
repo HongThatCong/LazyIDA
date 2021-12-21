@@ -135,7 +135,7 @@ class RangeForm(idaapi.Form):
 <##End EA (not included):{intEndEA}>
 """, {
     'intStartEA': idaapi.Form.NumericInput(swidth=20, tp=idaapi.Form.FT_HEX, value=start_ea),
-    'intSize': idaapi.Form.NumericInput(swidth=20, tp=idaapi.Form.FT_HEX, value=end_ea - start_ea - 1),
+    'intSize': idaapi.Form.NumericInput(swidth=20, tp=idaapi.Form.FT_HEX, value=end_ea - start_ea),
     'intEndEA': idaapi.Form.NumericInput(swidth=20, tp=idaapi.Form.FT_HEX, value=end_ea),
     'FormChangeCb': idaapi.Form.FormChangeCb(self.OnFormChange),
 })
@@ -621,7 +621,7 @@ def turn_off_ida_decision():
     if not sel:
         return 0
 
-    plg_print("Turn off IDA auto analysis for range 0x%X - 0x%X" % (start, end))
+    plg_print("Turn off IDA auto analysis for range 0x%X - 0x%X" % (start, end - 1))
     idaapi.revert_ida_decisions(start, end)
 
 # NgonNguyen & HTC -> end
